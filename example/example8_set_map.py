@@ -15,5 +15,5 @@ import random
 
 if __name__ == '__main__':
     # possible map value: ["default", "no_wall"]
-    app = PySimbotApp(map="no_wall", enable_wasd_control=True)
+    app = PySimbotApp(map="test", enable_wasd_control=True)
     app.run()
