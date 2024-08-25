@@ -86,20 +86,15 @@ class FuzzyTurn(Turn):
     def __init__(
         self,
         sensor: SensorData,
-        interface_left: FuzzyInterface,
-        interface_right: FuzzyInterface,
+        interface: FuzzyInterface,
     ) -> None:
         self.sensor = sensor
-        self.fuzzy_interface_left = interface_left
-        self.fuzzy_interface_right = interface_right
+        self.fuzzy_interface = interface
 
     def calculate(self) -> float:
         sensor: Dict[str, float] = self.sensor.distances_as_dict()
         sensor["smell"] = self.sensor.smell_nearest_degree(offset=45)
-        right = self.fuzzy_interface_right.evaluate_rules(sensor)
-        left = self.fuzzy_interface_left.evaluate_rules(sensor)
-        print(f"left: {left} right: {right}")
-        turn_value = right - left
+        turn_value = self.fuzzy_interface.evaluate_rules(sensor)
         return turn_value
 
 
@@ -107,18 +102,15 @@ class FuzzyMove(Move):
     def __init__(
         self,
         sensor: SensorData,
-        interface_front: FuzzyInterface,
-        interface_back: FuzzyInterface,
+        interface: FuzzyInterface,
     ) -> None:
         self.sensor = sensor
-        self.fuzzy_interface_front = interface_front
-        self.fuzzy_interface_back = interface_back
+        self.fuzzy_interface = interface
 
     def calculate(self) -> float:
         sensor: Dict[str, float] = self.sensor.distances_as_dict()
-        front = self.fuzzy_interface_front.evaluate_rules(sensor)
-        back = self.fuzzy_interface_back.evaluate_rules(sensor)
-        move_value = front - back
+        move_value = self.fuzzy_interface.evaluate_rules(sensor)
+
         return move_value
 
 

@@ -3,6 +3,7 @@ import math
 from collections import namedtuple
 from typing import Dict, Callable
 from scipy.integrate import quad
+import json
 
 Membership = namedtuple("Membership", ["name", "function"])
 FuzzyVariable = Dict[str, float]
@@ -273,26 +274,15 @@ class CombinedMembershipFunctions:
         return results
 
     def defuzzify(self, percentages: FuzzyVariable) -> float:
-        # Compute centroids for each membership function
         centroids = {
             name: function.centroid() for name, function in self._memberships.items()
         }
 
-        # Normalize the percentages
-        total_percentage = sum(percentages.values())
-        if total_percentage == 0:
-            return float("nan")  # Avoid division by zero
-
-        normalized_percentages = {
-            name: (perc / total_percentage) for name, perc in percentages.items()
-        }
-
-        # Calculate the weighted sum of the centroids
         weighted_sum = sum(
-            centroids.get(name, 0) * normalized_percentages.get(name, 0)
-            for name in percentages
+            centroids.get(name, 0) * percentages.get(name, 0) for name in percentages
         )
-        total_weight = sum(normalized_percentages.values())
+
+        total_weight = sum(percentages.values())
 
         return weighted_sum / total_weight if total_weight != 0 else float("nan")
 
@@ -301,20 +291,16 @@ class FuzzyInterface:
     def __init__(
         self,
         input_mfs: Dict[str, CombinedMembershipFunctions] = {},
-        output_mfs: CombinedMembershipFunctions = None,
     ) -> None:
         self.rules = []
         self.input_mfs: Dict[str, CombinedMembershipFunctions] = input_mfs
-        self.output_mfs: CombinedMembershipFunctions = output_mfs
 
     def add_rule(
-        self,
-        condition: Callable[[FuzzyVariable], float],
-        output_name: str,
+        self, condition: Callable[[FuzzyVariable], float], output: float
     ) -> None:
-        self.rules.append((condition, output_name))
+        self.rules.append((condition, output))
 
-    def add_rules(self, rules: list[(Callable[[FuzzyVariable], float], str)]) -> None:
+    def add_rules(self, rules: list[(Callable[[FuzzyVariable], float], float)]) -> None:
         for rule in rules:
             self.rules.append(rule)
 
@@ -324,17 +310,14 @@ class FuzzyInterface:
             name: self.input_mfs[name].fuzzify(value)
             for name, value in input_values.items()
         }
-        # print(fuzzy_values)
-        rule_results = {}
 
-        for condition, membership_name in self.rules:
-            rule_strength = condition(fuzzy_values)
-            if membership_name in rule_results:
-                rule_results[membership_name] += rule_strength
-            else:
-                rule_results[membership_name] = rule_strength
+        print(json.dumps(fuzzy_values, indent=4))
+        strength = 0
 
-        return self.output_mfs.defuzzify(rule_results)
+        for condition, output in self.rules:
+            strength += output * condition(fuzzy_values)
+
+        return strength
 
 
 def main():
