@@ -207,6 +207,11 @@ class FuzzyRobot(Robot):
         )
 
         fuzzy_interface_move.add_rule(
+            lambda values: values["front_right"]["medium"],
+            10,
+        )
+
+        fuzzy_interface_move.add_rule(
             lambda values: sum(
                 [
                     values["front"]["close"],
