@@ -1,110 +1,57 @@
-from typing import Callable
-from kivy.logger import Logger
-from pysimbotlib.core import Robot
+from typing import Tuple
 from strategies import FuzzyTurn, FuzzyMove
-from sensors import SensorData, DirectionalDistances
 from fuzzy_logic import (
     CombinedMembershipFunctions,
     MembershipFunction,
     FuzzyInterface,
-    FuzzyVariable,
 )
+from base_robot import BaseRobot
 
 
-class FuzzyRobot(Robot):
-    SAFE_DIST: float = 30.0
-    CLOSE_DIST: float = 5.0
-    HIT_DIST: float = 0.0
-    MOVE_SPEED: float = 10.0
-    TURN_SPEED: float = 20.0
-    TURN_SHARP_SPEED: float = 50.0
-
+class FuzzyRobot(BaseRobot):
     def __init__(self) -> None:
+        self.fuzzy_interface_move, self.fuzzy_interface_turn = self.setup_interface()
+        self.setup_move_rule(fuzzy_interface_move=self.fuzzy_interface_move)
+        self.setup_turn_rule(fuzzy_interface_turn=self.fuzzy_interface_turn)
         super().__init__()
-        sensor_data: SensorData = self.sensor()
-        distance_msf = CombinedMembershipFunctions()
-        distance_msf.add_membership(
-            "close",
-            MembershipFunction.create(function="gaussian", c=0.0, sigma=15.0),
-        )
-        distance_msf.add_membership(
-            "medium",
-            MembershipFunction.create(function="gaussian", c=20.0, sigma=20.0),
-        )
-        distance_msf.add_membership(
-            "far",
-            MembershipFunction.create(function="gaussian", c=100.0, sigma=50.0),
-        )
-        smell_direction_msf = CombinedMembershipFunctions()
-        smell_direction_msf.add_membership(
-            "front", MembershipFunction.create(function="gaussian", c=45, sigma=135)
-        )
-        smell_direction_msf.add_membership(
-            "right", MembershipFunction.create(function="gaussian", c=115, sigma=135)
-        )
-        smell_direction_msf.add_membership(
-            "back", MembershipFunction.create(function="gaussian", c=205, sigma=135)
-        )
-        smell_direction_msf.add_membership(
-            "left", MembershipFunction.create(function="gaussian", c=295, sigma=135)
+
+    def create_turn_strategy(self) -> FuzzyTurn:
+        return FuzzyTurn(
+            sensor=self.sensor_data,
+            interface=self.fuzzy_interface_turn,
         )
 
-        fuzzy_interface_turn = FuzzyInterface(
-            input_mfs={
-                "front": distance_msf,
-                "front_right": distance_msf,
-                "right": distance_msf,
-                "back_right": distance_msf,
-                "back": distance_msf,
-                "back_left": distance_msf,
-                "left": distance_msf,
-                "front_left": distance_msf,
-                "smell": smell_direction_msf,
-            },
+    def create_move_strategy(self) -> FuzzyMove:
+        return FuzzyMove(
+            sensor=self.sensor_data,
+            interface=self.fuzzy_interface_move,
         )
 
-        fuzzy_interface_move = FuzzyInterface(
-            input_mfs={
-                "front": distance_msf,
-                "front_right": distance_msf,
-                "right": distance_msf,
-                "back_right": distance_msf,
-                "back": distance_msf,
-                "back_left": distance_msf,
-                "left": distance_msf,
-                "front_left": distance_msf,
-            },
-        )
-
-        # fuzzy_interface_turn.add_rule(
-        #     lambda values: self.smell() * values[sensor_data.smell_side()]["far"],
-        #     1,
-        # )
-
+    def setup_turn_rule(self, fuzzy_interface_turn: FuzzyInterface) -> None:
         fuzzy_interface_turn.add_rule(
             lambda values: self.smell()
-            * values[sensor_data.smell_side()]["far"]
+            * values[self.sensor_data.smell_side()]["far"]
             * max(
-                values[sensor_data.side_with_offset(sensor_data.smell_side(), -1)][
-                    "medium"
-                ],
-                values[sensor_data.side_with_offset(sensor_data.smell_side(), -1)][
-                    "far"
-                ],
+                values[
+                    self.sensor_data.side_with_offset(self.sensor_data.smell_side(), -1)
+                ]["medium"],
+                values[
+                    self.sensor_data.side_with_offset(self.sensor_data.smell_side(), -1)
+                ]["far"],
             )
             * max(
-                values[sensor_data.side_with_offset(sensor_data.smell_side(), 1)][
-                    "medium"
-                ],
-                values[sensor_data.side_with_offset(sensor_data.smell_side(), 1)][
-                    "far"
-                ],
+                values[
+                    self.sensor_data.side_with_offset(self.sensor_data.smell_side(), 1)
+                ]["medium"],
+                values[
+                    self.sensor_data.side_with_offset(self.sensor_data.smell_side(), 1)
+                ]["far"],
             ),
             1,
         )
 
         fuzzy_interface_turn.add_rule(
-            lambda values: sensor_data.smell_food_on_left_sign()
+            lambda values: self.sensor_data.smell_food_on_left_sign()
             * values["front"]["close"]
             * values["front_left"]["far"]
             * values["front_right"]["far"],
@@ -112,7 +59,7 @@ class FuzzyRobot(Robot):
         )
 
         fuzzy_interface_turn.add_rule(
-            lambda values: sensor_data.smell_food_on_left_sign()
+            lambda values: self.sensor_data.smell_food_on_left_sign()
             * values["front"]["close"]
             * values["front_left"]["close"]
             * values["front_right"]["close"],
@@ -194,8 +141,7 @@ class FuzzyRobot(Robot):
             45,
         )
 
-        # -------------------------------- robot movement -----------------------------------------
-
+    def setup_move_rule(self, fuzzy_interface_move: FuzzyInterface) -> None:
         fuzzy_interface_move.add_rule(
             lambda values: values["front"]["far"],
             30,
@@ -223,38 +169,59 @@ class FuzzyRobot(Robot):
             -20,
         )
 
-        self.turn_strategy = FuzzyTurn(
-            sensor=sensor_data,
-            interface=fuzzy_interface_turn,
+    def setup_interface(self) -> Tuple[FuzzyInterface, FuzzyInterface]:
+        distance_msf = CombinedMembershipFunctions()
+        distance_msf.add_membership(
+            "close",
+            MembershipFunction.create(function="gaussian", c=0.0, sigma=15.0),
+        )
+        distance_msf.add_membership(
+            "medium",
+            MembershipFunction.create(function="gaussian", c=20.0, sigma=20.0),
+        )
+        distance_msf.add_membership(
+            "far",
+            MembershipFunction.create(function="gaussian", c=100.0, sigma=50.0),
+        )
+        smell_direction_msf = CombinedMembershipFunctions()
+        smell_direction_msf.add_membership(
+            "front", MembershipFunction.create(function="gaussian", c=45, sigma=135)
+        )
+        smell_direction_msf.add_membership(
+            "right", MembershipFunction.create(function="gaussian", c=115, sigma=135)
+        )
+        smell_direction_msf.add_membership(
+            "back", MembershipFunction.create(function="gaussian", c=205, sigma=135)
+        )
+        smell_direction_msf.add_membership(
+            "left", MembershipFunction.create(function="gaussian", c=295, sigma=135)
         )
 
-        self.move_strategy = FuzzyMove(
-            sensor=sensor_data,
-            interface=fuzzy_interface_move,
+        fuzzy_interface_turn = FuzzyInterface(
+            input_mfs={
+                "front": distance_msf,
+                "front_right": distance_msf,
+                "right": distance_msf,
+                "back_right": distance_msf,
+                "back": distance_msf,
+                "back_left": distance_msf,
+                "left": distance_msf,
+                "front_left": distance_msf,
+                "smell": smell_direction_msf,
+            },
         )
 
-    def update(self):
-        Logger.debug("Updating robot state.")
-        try:
-            move_value: float = self.move_strategy.calculate()
-            self.move(move_value)
-
-            turn_value: float = self.turn_strategy.calculate()
-            self.turn(turn_value)
-
-            # Logger.debug(f"Computed move value: {move_value}, turn value: {turn_value}")
-
-            Logger.info("Robot state updated successfully.")
-        except Exception as e:
-            Logger.error("Error during robot update:", exc_info=True)
-
-    def sensor(self) -> SensorData:
-        return SensorData(
-            distances=super().distance,
-            smell=super().smell,
-            smell_nearest=super().smell_nearest,
-            stuck=super().stuck,
-            safe_dist=self.SAFE_DIST,
-            close_dist=self.CLOSE_DIST,
-            hit_dist=self.HIT_DIST,
+        fuzzy_interface_move = FuzzyInterface(
+            input_mfs={
+                "front": distance_msf,
+                "front_right": distance_msf,
+                "right": distance_msf,
+                "back_right": distance_msf,
+                "back": distance_msf,
+                "back_left": distance_msf,
+                "left": distance_msf,
+                "front_left": distance_msf,
+            },
         )
+
+        return fuzzy_interface_move, fuzzy_interface_turn
