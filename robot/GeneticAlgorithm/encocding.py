@@ -30,16 +30,20 @@ class RuleGene(Gene):
         name: Union[str, int],
         value: Union[str, int],
         mapping: Dict[Union[str, int], Callable[..., float]],
+        variant: Tuple[str, int] = None,
     ) -> None:
         super().__init__(name=name, value=value)
         self.mapping: Dict[Union[str, int], Callable[..., float]] = mapping
+        self.variant: Tuple[str, int] = (
+            variant if variant else tuple(self.mapping.keys())
+        )
+
+    def __len__(self) -> int:
+        return len(self.varaint())
 
     def clone(self) -> "RuleGene":
         """Creates a deep copy of the RuleGene."""
         return copy.deepcopy(self)
-
-    def varaint(self):
-        return self.mapping.keys()
 
     def evaluate(self, **args) -> float:
         """Evaluates the value using the provided mapping and optional arguments."""
@@ -60,9 +64,14 @@ class ReturnGene(Gene):
         name: Union[str, int],
         value: Union[int, float],
         func: Callable[..., float],
+        variant: Tuple[int, float] = None,
     ) -> None:
         super().__init__(name=name, value=value)
         self.func: Callable[..., float] = func
+        self.variant: Tuple[int, float] = variant if variant else tuple((0, 100))
+
+    def __len__(self) -> int:
+        return max(self.variant)
 
     def clone(self) -> "ReturnGene":
         """Creates a deep copy of the ReturnGene."""
@@ -93,6 +102,24 @@ class Chromosome:
     def genes_list(self) -> List[Gene]:
         return self.rules_list + self.returns_list
 
+    @genes_list.setter
+    def genes_list(self, new_genes):
+        """Distributes new_genes back into rules_list and returns_list."""
+        num_rules = len(self.rules_list)
+        num_returns = len(self.returns_list)
+
+        # Ensure the new genes list matches the expected length
+        if len(new_genes) != num_rules + num_returns:
+            raise ValueError(
+                f"Expected {num_rules + num_returns} genes, got {len(new_genes)}."
+            )
+
+        # Set the first part of new_genes to rules_list
+        self.rules_list = new_genes[:num_rules]
+
+        # Set the remaining part of new_genes to returns_list
+        self.returns_list = new_genes[num_rules:]
+
     def add_rule_gene(
         self,
         value: Union[str, int],
@@ -112,6 +139,18 @@ class Chromosome:
         if name is None:
             name = len(self)
         self.returns_list.append(ReturnGene(value=value, func=func, name=name))
+
+    def set_gene_at_index(self, index, gene):
+        """Sets a specific gene at the given index, adjusting rules_list and returns_list as needed."""
+        if not (0 <= index < len(self.genes_list)):
+            raise IndexError("Index out of range.")
+
+        num_rules = len(self.rules_list)
+
+        if index < num_rules:
+            self.rules_list[index] = gene
+        else:
+            self.returns_list[index - num_rules] = gene
 
     def clone(self) -> "Chromosome":
         """Creates a deep copy of the Chromosome."""
@@ -135,8 +174,8 @@ class Chromosome:
 
 
 class Genotype:
-    def __init__(self, chromosomes: List[Chromosome] = list()) -> None:
-        self.chromosomes: List[Chromosome] = chromosomes
+    def __init__(self, chromosomes: List[Chromosome] = None) -> None:
+        self.chromosomes: List[Chromosome] = chromosomes if chromosomes else list()
         self.chromosome_return_length: int = (
             len(chromosomes[0].returns_list) if chromosomes else None
         )
@@ -195,10 +234,19 @@ def main():
     )
 
     c1 = Chromosome()
+    c2 = Chromosome()
 
     for _ in range(8):
         c1.add_rule_gene(
             value="_",
+            mapping=dict(
+                _=lambda **_: 1,
+                near=lambda **args: dist_msf.fuzzify(args["x"])["near"],
+                far=lambda **args: dist_msf.fuzzify(args["x"])["far"],
+            ),
+        )
+        c2.add_rule_gene(
+            value="far",
             mapping=dict(
                 _=lambda **_: 1,
                 near=lambda **args: dist_msf.fuzzify(args["x"])["near"],
@@ -211,14 +259,33 @@ def main():
         value=180,
         func=lambda x: (x % 181) - 90,
     )
+    c2.add_return_gene(
+        name="turn",
+        value=180,
+        func=lambda x: (x % 181) - 90,
+    )
 
     c1.add_return_gene(
         name="move",
         value=10,
         func=lambda x: (x % 21) - 10,
     )
+    c2.add_return_gene(
+        name="move",
+        value=10,
+        func=lambda x: (x % 21) - 10,
+    )
+
+    gn1 = Genotype()
+    gn2 = Genotype()
+
+    for _ in range(16):
+        gn1.add_chromosome(c1.clone())
+        gn2.add_chromosome(c2.clone())
+
+    # print(gn1)
     # print(
-    #     c1.evaluate(
+    #     gn1.evaluate(
     #         args={
     #             0: {"x": 10},
     #             1: {"x": 10},
@@ -231,27 +298,6 @@ def main():
     #         }
     #     )
     # )
-
-    gn1 = Genotype()
-
-    for _ in range(16):
-        gn1.add_chromosome(c1.clone())
-
-    print(gn1)
-    print(
-        gn1.evaluate(
-            args={
-                0: {"x": 10},
-                1: {"x": 10},
-                2: {"x": 10},
-                3: {"x": 10},
-                4: {"x": 10},
-                5: {"x": 10},
-                6: {"x": 10},
-                7: {"x": 10},
-            }
-        )
-    )
     # result = c1.evaluate(args={0: {"x": 50}})
     # print(result)
     # g1 = RuleGene(
