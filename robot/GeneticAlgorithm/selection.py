@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from encocding import Genotype
+from .encoding import Genotype
 from typing import List
 import random
 

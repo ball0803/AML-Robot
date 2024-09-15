@@ -50,8 +50,18 @@ class SensorData:
     def distances(self) -> DirectionalDistances:
         return DirectionalDistances(*self._distances())
 
+    def side(self):
+        return self.SIDE
+
     def distances_as_dict(self) -> dict:
         return self.distances._asdict()
+
+    def distances_as_input(self) -> dict:
+        distances_dict = self.distances_as_dict()
+        formatted_dict = {
+            direction: {"x": value} for direction, value in distances_dict.items()
+        }
+        return formatted_dict
 
     def is_front_safe(self) -> bool:
         return (

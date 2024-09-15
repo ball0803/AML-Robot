@@ -8,6 +8,7 @@ from fuzzy_logic import (
     FuzzyInterface,
     FuzzyVariable,
 )
+from GeneticAlgorithm import Genotype
 import random
 
 
@@ -112,6 +113,38 @@ class FuzzyMove(Move):
         move_value = self.fuzzy_interface.evaluate_rules(sensor)
 
         return move_value
+
+
+class GeneticTurn(Turn):
+    def __init__(self, sensor: SensorData, genotype: Genotype):
+        self.sensor = sensor
+        self.genotype = genotype
+
+    def calculate(self) -> float:
+        self.sensor.distances_as_dict()
+        turn, _ = self.genotype.evaluate(
+            args={
+                **self.sensor.distances_as_input(),
+                "smell_direction": {"x": self.sensor.smell()},
+            }
+        )
+        return turn
+
+
+class GeneticMove(Turn):
+    def __init__(self, sensor: SensorData, genotype: Genotype):
+        self.sensor = sensor
+        self.genotype = genotype
+
+    def calculate(self) -> float:
+        self.sensor.distances_as_dict()
+        _, move = self.genotype.evaluate(
+            args={
+                **self.sensor.distances_as_input(),
+                "smell_direction": {"x": self.sensor.smell()},
+            }
+        )
+        return move
 
 
 def distance() -> list:

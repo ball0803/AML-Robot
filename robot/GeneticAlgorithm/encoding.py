@@ -216,6 +216,7 @@ class Genotype:
 
             for chromosome in self.chromosomes:
                 chromosome_result = chromosome.evaluate(args=args)
+                # print(chromosome_result)
                 result = [r + cr for r, cr in zip(result, chromosome_result)]
 
             return tuple(result)

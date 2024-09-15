@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from encocding import Genotype, Chromosome
+from .encoding import Genotype, Chromosome
 from typing import Tuple
 import random
 from fuzzy_logic import CombinedMembershipFunctions, MembershipFunction

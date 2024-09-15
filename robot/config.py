@@ -16,5 +16,5 @@ Config.set("kivy", "log_maxfiles", 10)
 
 Logger.setLevel(LOG_LEVELS["debug"])
 
-FRAME_RATE = 24
+FRAME_RATE = 120
 REFRESH_INTERVAL = 1 / FRAME_RATE
