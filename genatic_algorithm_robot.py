@@ -64,16 +64,6 @@ def before_simulation(simbot: Simbot):
 def after_simulation(simbot: Simbot):
     Logger.info("GA: Start GA Process ...")
     global not_change
-    # There are some simbot and robot calcalated statistics and property during simulation
-    # - simbot.simulation_count
-    # - simbot.eat_count
-    # - simbot.food_move_count
-    # - simbot.score
-    # - simbot.scoreStr
-    # - simbot.robot[0].eat_count
-    # - simbot.robot[0].collision_count
-    # - simbot.robot[0].color
-    # evaluation – compute fitness values here
     for robot in simbot.robots:
         print(robot.collision_count)
         food_pos = simbot.objectives[0].pos

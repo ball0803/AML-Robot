@@ -1,6 +1,7 @@
 from fuzzy_logic import CombinedMembershipFunctions, MembershipFunction
 from typing import Tuple, Callable, List, Dict, Union
 import copy
+import random
 
 
 class Gene:
@@ -204,6 +205,13 @@ class Genotype:
     def clone(self) -> "Genotype":
         """Creates a deep copy of the Genotype."""
         return copy.deepcopy(self)
+
+    def scamble(self):
+        for chromosomes in self.chromosomes:
+            for gene in chromosomes.rules_list:
+                gene.value = random.choice(gene.variant)
+            for gene in chromosomes.returns_list:
+                gene.value = random.uniform(gene.variant[0], gene.variant[1])
 
     def evaluate(self, args: Dict[str, any]) -> Tuple[float, ...]:
         """Evaluates all chromosomes and sums their evaluation results."""

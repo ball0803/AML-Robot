@@ -42,9 +42,8 @@ class TournamentSelection(SelectionStrategy):
         tournament_contestants = random.sample(
             list(zip(population, fitness_scores)), self.tournament_size
         )
-        winner = max(
-            tournament_contestants, key=lambda pair: pair[1]
-        )  # Select the best fitness
+        winner = max(tournament_contestants, key=lambda pair: pair[1])
+        # print(winner)
         return winner[0].clone()
 
 

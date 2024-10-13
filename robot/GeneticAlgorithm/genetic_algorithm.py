@@ -75,20 +75,26 @@ class GeneticAlgorithm:
 
         # Continue creating new genotypes until the population is full
         while len(new_population) < len(self):
-            # print(len(new_population), len(self))
             parent1 = self.select()
             parent2 = self.select()
-            # print(parent1, parent2)
 
             offspring1, offspring2 = self.crossover(parent1, parent2)
-            # print(offspring1)
             self.mutate(offspring1)
-            # print(offspring1)
 
             new_population.append(offspring1)
 
         # Update the population with the new generation
         self.population = new_population
+
+    def create_new_genotype(self) -> Genotype:
+        """Create the new genotypes."""
+        parent1 = self.select()
+        parent2 = self.select()
+
+        offspring, _ = self.crossover(parent1, parent2)
+        self.mutate(offspring)
+
+        return offspring
 
     def run(self, generations: int, args: Dict[str, any]) -> None:
         """Run the genetic algorithm for a specified number of generations."""

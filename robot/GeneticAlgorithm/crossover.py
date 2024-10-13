@@ -16,7 +16,7 @@ class CrossoverStrategy(ABC):
         pass
 
 
-class OnePointCrossover(CrossoverStrategy):
+class OnePointCrossoverExtra(CrossoverStrategy):
     """One-point crossover strategy at the gene level inside each chromosome."""
 
     def crossover(
@@ -27,6 +27,32 @@ class OnePointCrossover(CrossoverStrategy):
         for c1, c2 in zip(parent1.chromosomes, parent2.chromosomes):
             # Perform one-point crossover for each chromosome
             point = random.randint(0, len(c1.genes_list) - 1)
+            new_c1 = c1.clone()
+            new_c2 = c2.clone()
+
+            for i in range(point, len(new_c1)):
+                new_c1.set_gene_at_index(i, c2.genes_list[i].clone())
+                new_c2.set_gene_at_index(i, c1.genes_list[i].clone())
+
+            offspring1.add_chromosome(new_c1)
+            offspring2.add_chromosome(new_c2)
+
+        return offspring1, offspring2
+
+
+class OnePointCrossover(CrossoverStrategy):
+    """One-point crossover strategy at the gene level inside each chromosome."""
+
+    def crossover(
+        self, parent1: Genotype, parent2: Genotype
+    ) -> Tuple[Genotype, Genotype]:
+        offspring1 = Genotype()
+        offspring2 = Genotype()
+
+        point = random.randint(0, len(parent1.chromosomes[0].genes_list) - 1)
+
+        for c1, c2 in zip(parent1.chromosomes, parent2.chromosomes):
+
             new_c1 = c1.clone()
             new_c2 = c2.clone()
 
