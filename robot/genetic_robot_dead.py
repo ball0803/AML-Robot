@@ -148,7 +148,7 @@ def after_simulation(simbot: Simbot):
         fitness_value = 1000 - int(distance) + int(robot.total_back_move)
         fitness_value -= robot.total_stop * 10
         # fitness_value -= robot.collision_count * 5
-        # fitness_value -= robot.spin_count * 10
+        fitness_value -= robot.spin_count * 10
         fitness_value += (200 - robot.time_to_eat) * 5
 
         # fitness.append(fitness_value)
@@ -187,10 +187,7 @@ class GeneticRobot(Robot):
         self.total_stop = 0
         self.time_to_eat = 200
         self.death_count = 0
-        self.previous_positions = deque(maxlen=50)
         self.just_hit = 0
-        self.total_distance_moved = 0
-        self.circular_movement_count = 0
 
     def calculate_fitness(self) -> float:
         fitness_value = 1000
@@ -200,16 +197,17 @@ class GeneticRobot(Robot):
 
         distance = self.smell_nearest()
 
-        fitness_value -= int(distance) * 20
+        fitness_value -= int(distance) * 2
         # print("1", fitness_value)
-        fitness_value -= int(self.total_back_move) * 10
+        # fitness_value -= int(self.total_back_move) * 10
         # print("2", self.total_back_move, fitness_value)
         fitness_value -= self.total_stop * 10
         # print("3", self.total_stop, fitness_value)
         # fitness_value -= self.collision_count * 2
+        fitness_value -= self.just_hit * 20
+        fitness_value -= self.stuck * 10
         # print("4", self.time)
         fitness_value += self.time * 1
-        fitness_value -= self.circular_movement_count * 10
         # print("5", fitness_value)
         fitness_value += self.eat_count * 1000
         # print("6", fitness_value)
@@ -223,11 +221,10 @@ class GeneticRobot(Robot):
         self.lazy_count = 0
         self.headache_count = 0
         self.total_back_move = 0
-        self.circular_movement_count = 0
+        self.spin_count = 0
         self.eat_count = 0
         self.time_to_eat = 200
-        self.total_distance_moved = 0
-        self.previous_positions.clear()
+        self.just_hit = 0
 
     def create_move_strategy(self) -> Move:
         return GeneticMove(sensor=self.sensor_data, genotype=self.genotype)
@@ -249,27 +246,6 @@ class GeneticRobot(Robot):
         elif self.energy < 1200:
             self.set_color(0, 0, 0, 1)
 
-    def is_moving_in_circle(self) -> bool:
-        if len(self.previous_positions) < 50:
-            return False
-
-        # Convert positions to numpy array for easier calculations
-        positions = np.array(self.previous_positions)
-
-        # Calculate the center of the positions
-        center = np.mean(positions, axis=0)
-
-        # Calculate the distances from each point to the center
-        distances = np.linalg.norm(positions - center, axis=1)
-
-        # Calculate the standard deviation of the distances
-        std_dev = np.std(distances)
-
-        # If the standard deviation is low, the points are likely in a circle
-        # You may need to adjust this threshold based on your specific scenario
-        return std_dev < 5
- 
-
     def update(self):
         global death_counts, current_tick
         fitness: List[float] = []
@@ -281,9 +257,6 @@ class GeneticRobot(Robot):
 
             self.change_color()
 
-            current_pos = self.pos
-            self.previous_positions.append(current_pos)
-
             turn_value: float = self.turn_strategy.calculate()
             self.turn(turn_value)
 
@@ -293,24 +266,14 @@ class GeneticRobot(Robot):
             if move_value < 0:
                 self.total_back_move -= move_value
 
-            if move_value < 1:
+            if move_value < 3:
                 self.total_stop += 1
 
             self.energy -= 1
 
-            # Calculate distance moved
-            if len(self.previous_positions) >= 2:
-                self.total_distance_moved += Util.distance(self.previous_positions[-2], current_pos)
-
-            # Check for circular movement
-            if len(self.previous_positions) == 50:
-                if self.is_moving_in_circle():
-                    self.circular_movement_count += 1
-                    self.energy -= 15 
-
-            # if self.stuck:
-            #     # print("stuck")
-            #     self.energy -= 10
+            if self.stuck:
+                # print("stuck")
+                self.energy -= 10
 
             if int(move_value) == 0 and int(turn_value) == 0:
                 self.lazy_count += 1
@@ -354,6 +317,7 @@ class GeneticRobot(Robot):
             self.time += 1
             current_tick += 1
 
+            
         
 
         except Exception as e:
