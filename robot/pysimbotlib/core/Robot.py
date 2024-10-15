@@ -32,6 +32,7 @@ class Robot(Widget):
     collision_count: int = 0
     just_eat: bool = False
     stuck: bool = False
+    just_hit: bool = False
 
     @cache
     def get_obstacles_bboxes(self) -> Generator[Geom.BBox, None, None]:

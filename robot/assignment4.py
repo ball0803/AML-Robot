@@ -131,7 +131,7 @@ class StupidRobot(Robot):
 
         # if the robot is lazy
         if self.lazy_count:
-            self.energy -= 40
+            self.energy -= 20
 
         # if the robot headache
         if self.headache_count:
@@ -170,50 +170,62 @@ class StupidRobot(Robot):
     def generate_new_robot(self):
         simbot = self._sm
         num_robots = len(simbot.robots)
+        simbot.robots.sort(key=lambda robot: self.energy, reverse=True)
 
-        def select() -> StupidRobot:
-            index = random.randrange(num_robots)
-            return simbot.robots[index]
+        def select():
+            # Generate a random number between 0 and the sum of all ranks
+            rand = random.uniform(0, num_robots * (num_robots + 1) / 2)
+            accum = 0
 
-        select1 = select()  # design the way for selection by yourself
-        select2 = select()  # design the way for selection by yourself
+            # Go through the individuals, starting from the best
+            for i in range(num_robots):
+                # Add the rank of the current individual
+                accum += num_robots - i
 
-        while select1 == select2:
-            select2 = select()
+                # If the accumulated rank is greater than the random number, select this individual
+                if accum > rand:
+                    return simbot.robots[i]
 
-        temp = StupidRobot()
+        for _ in range(num_robots - int(0.1 * num_robots)):
+            select1 = select()  # design the way for selection by yourself
+            select2 = select()  # design the way for selection by yourself
 
-        # Doing crossover
-        #     using next_gen_robots for temporary keep the offsprings, later they will be copy
-        #     to the robots
-        crossover_point = random.randint(0, simbot.robots[0].RULE_LENGTH - 1)
+            while select1 == select2:
+                select2 = select()
 
-        # Create the first offspring
-        offspring1 = StupidRobot()
-        for i in range(simbot.robots[0].NUM_RULES):
-            offspring1.RULES[i] = (
-                select1.RULES[i][:crossover_point] + select2.RULES[i][crossover_point:]
-            )
+            temp = StupidRobot()
 
-        # Doing mutation
-        #     generally scan for all next_gen_robots we have created, and with very low
-        #     propability, change one byte to a new random value.
-        mutation_rate = 0.01
-        sweak_rate = 0.05
-        for i in range(simbot.robots[0].NUM_RULES):
-            for j in range(simbot.robots[0].RULE_LENGTH):
-                if random.random() < mutation_rate:
-                    offspring1.RULES[i][j] = random.randrange(256)
-                if random.random() < sweak_rate:
-                    offspring1.RULES[i][j] = offspring1.RULES[i][j] + random.choice(
-                        range(-5, 6)
-                    )
+            # Doing crossover
+            #     using next_gen_robots for temporary keep the offsprings, later they will be copy
+            #     to the robots
+            crossover_point = random.randint(0, simbot.robots[0].RULE_LENGTH - 1)
 
-        # next_gen_robots.append(offspring1)
+            # Create the first offspring
+            offspring1 = StupidRobot()
+            for i in range(simbot.robots[0].NUM_RULES):
+                offspring1.RULES[i] = (
+                    select1.RULES[i][:crossover_point] + select2.RULES[i][crossover_point:]
+                )
 
-        # Making a new random robot
+            # Doing mutation
+            #     generally scan for all next_gen_robots we have created, and with very low
+            #     propability, change one byte to a new random value.
+            mutation_rate = 0.01
+            sweak_rate = 0.05
+            for i in range(simbot.robots[0].NUM_RULES):
+                for j in range(simbot.robots[0].RULE_LENGTH):
+                    if random.random() < mutation_rate:
+                        offspring1.RULES[i][j] = random.randrange(256)
+                    if random.random() < sweak_rate:
+                        offspring1.RULES[i][j] = offspring1.RULES[i][j] + random.choice(
+                            range(-5, 6)
+                        )
 
-        return temp
+            # next_gen_robots.append(offspring1)
+
+            # Making a new random robot
+
+            return temp
 
     def S0_near(self):
         if self.S0 <= 0:
@@ -414,11 +426,3 @@ if __name__ == "__main__":
         customfn_after_simulation=after_simulation,
     )
     app.run()
-    # Plot Dead value
-    plt.figure()
-    plt.plot(death_value_list)
-    plt.title("Death Vale Overtime")
-    plt.xlabel("Time")
-    plt.ylabel("Death")
-
-    plt.show()
