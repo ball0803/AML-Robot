@@ -125,7 +125,7 @@ class GeneticTurn(Turn):
         turn, _ = self.genotype.evaluate(
             args={
                 **self.sensor.distances_as_input(),
-                "smell_direction": {"x": self.sensor.smell()},
+                "smell_direction": {"x": self.sensor.smell_nearest()},
             }
         )
         return turn
@@ -141,7 +141,7 @@ class GeneticMove(Turn):
         _, move = self.genotype.evaluate(
             args={
                 **self.sensor.distances_as_input(),
-                "smell_direction": {"x": self.sensor.smell()},
+                "smell_direction": {"x": self.sensor.smell_nearest()},
             }
         )
         return move
