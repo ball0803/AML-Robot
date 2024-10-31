@@ -1,6 +1,7 @@
 from typing import Callable
 from collections import namedtuple
 from kivy.logger import Logger
+import numpy as np
 
 DirectionalDistances = namedtuple(
     "DirectionalDistances",
@@ -52,6 +53,26 @@ class SensorData:
 
     def side(self):
         return self.SIDE
+
+    def sensor_input(self, scaler, config) -> np.ndarray:
+        """Prepare and scale sensor inputs for the neural network"""
+        sensor = np.zeros((1, config.INPUT_FEATURES))
+        
+        for i, ir in enumerate(self._distances()):
+            sensor[0][i] = scaler.scale(
+                ir,
+                config.DISTANCE_RANGE,
+                config.NORMALIZED_RANGE
+            )
+        
+        sensor[0][8] = scaler.scale(
+            self.smell_nearest(),
+            config.ANGLE_RANGE,
+            config.NORMALIZED_RANGE
+        )
+        
+        return sensor
+
 
     def distances_as_dict(self) -> dict:
         return self.distances._asdict()

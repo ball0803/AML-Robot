@@ -131,7 +131,7 @@ class GeneticTurn(Turn):
         return turn
 
 
-class GeneticMove(Turn):
+class GeneticMove(Move):
     def __init__(self, sensor: SensorData, genotype: Genotype):
         self.sensor = sensor
         self.genotype = genotype
@@ -145,6 +145,60 @@ class GeneticMove(Turn):
             }
         )
         return move
+
+class NNTurn(Turn):
+    def __init__(self, sensor: SensorData, model, scaler, config):
+        self.sensor = sensor
+        self.model = model
+        self.scaler = scaler
+        self.config = config
+
+    def calculate(self) -> float:
+        """Predict robot movement using neural network"""
+        try:
+            output = self.model.predict(
+                self.sensor.sensor_input(self.scaler, self.config),
+                verbose=0
+            )
+            
+            turn = self.scaler.scale(
+                output[0][0],
+                self.config.NORMALIZED_RANGE,
+                self.config.TURN_RANGE
+            ).item()
+
+            return turn
+            
+        except Exception as e:
+            Logger.error(f'Prediction: Failed to predict movement: {e}')
+            return 0
+
+class NNMove(Move):
+    def __init__(self, sensor: SensorData, model, scaler, config):
+        self.sensor = sensor
+        self.model = model
+        self.scaler = scaler
+        self.config = config
+
+    def calculate(self) -> float:
+        """Predict robot movement using neural network"""
+        try:
+            output = self.model.predict(
+                self.sensor.sensor_input(self.scaler, self.config),
+                verbose=0
+            )
+            
+            move = self.scaler.scale(
+                output[0][1],
+                self.config.NORMALIZED_RANGE,
+                self.config.MOVE_RANGE
+            ).item()
+            
+            return move
+            
+        except Exception as e:
+            Logger.error(f'Prediction: Failed to predict movement: {e}')
+            return 0
 
 
 def distance() -> list:

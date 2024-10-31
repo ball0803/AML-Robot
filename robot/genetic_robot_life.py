@@ -5,7 +5,6 @@ from pysimbotlib.core.Util import Util
 from collections import deque
 import numpy as np
 from sensors import SensorData
-
 from strategies import Move, Turn, GeneticMove, GeneticTurn
 from fuzzy_logic import CombinedMembershipFunctions, MembershipFunction
 
