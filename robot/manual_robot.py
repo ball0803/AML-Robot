@@ -67,6 +67,7 @@ if __name__ == "__main__":
             robot_cls=ManualRobot,
             num_robots=1,
             interval=REFRESH_INTERVAL,
+            map="default_map2",
             enable_wasd_control=True,
             save_wasd_history=True,
             customfn_before_simulation=before_simulation,

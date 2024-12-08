@@ -4,6 +4,7 @@ from pysimbotlib.core import Robot
 from sensors import SensorData
 from strategies import Move, Turn
 import random
+import math
 
 
 class BaseRobot(Robot):
@@ -13,6 +14,7 @@ class BaseRobot(Robot):
     MOVE_SPEED: float = 10.0
     TURN_SPEED: float = 20.0
     TURN_SHARP_SPEED: float = 50.0
+    Point2D = Tuple[float, float]
 
     def __init__(self) -> None:
         super().__init__()
@@ -52,16 +54,18 @@ class BaseRobot(Robot):
     def create_turn_strategy(self) -> Turn:
         raise NotImplementedError
 
-    def sensor(self) -> SensorData:
-        return SensorData(
-            distances=super().distance,
-            smell=super().smell,
-            smell_nearest=super().smell_nearest,
-            stuck=super().stuck,
-            safe_dist=self.SAFE_DIST,
-            close_dist=self.CLOSE_DIST,
-            hit_dist=self.HIT_DIST,
-        )
+    def cal_distance(self, p1: Point2D, p2: Point2D) -> float:
+        return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
+    @property
+    def food_dist(self) -> float:
+        if self._sm:
+            nearest_food = min(
+                self._sm.objectives,
+                key=lambda food: self.cal_distance(self.pos, food.pos),
+            )
+            return self.cal_distance(self.pos, nearest_food.pos)
+        return 0
 
     def alter_movement(
         self,

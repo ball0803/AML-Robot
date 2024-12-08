@@ -146,6 +146,7 @@ class GeneticMove(Move):
         )
         return move
 
+
 class NNTurn(Turn):
     def __init__(self, sensor: SensorData, model, scaler, config):
         self.sensor = sensor
@@ -157,21 +158,19 @@ class NNTurn(Turn):
         """Predict robot movement using neural network"""
         try:
             output = self.model.predict(
-                self.sensor.sensor_input(self.scaler, self.config),
-                verbose=0
+                self.sensor.sensor_input(self.scaler, self.config), verbose=0
             )
-            
+
             turn = self.scaler.scale(
-                output[0][0],
-                self.config.NORMALIZED_RANGE,
-                self.config.TURN_RANGE
+                output[0][0], self.config.NORMALIZED_RANGE, self.config.TURN_RANGE
             ).item()
 
             return turn
-            
+
         except Exception as e:
-            Logger.error(f'Prediction: Failed to predict movement: {e}')
+            Logger.error(f"Prediction: Failed to predict movement: {e}")
             return 0
+
 
 class NNMove(Move):
     def __init__(self, sensor: SensorData, model, scaler, config):
@@ -184,20 +183,17 @@ class NNMove(Move):
         """Predict robot movement using neural network"""
         try:
             output = self.model.predict(
-                self.sensor.sensor_input(self.scaler, self.config),
-                verbose=0
+                self.sensor.sensor_input(self.scaler, self.config), verbose=0
             )
-            
+
             move = self.scaler.scale(
-                output[0][1],
-                self.config.NORMALIZED_RANGE,
-                self.config.MOVE_RANGE
+                output[0][1], self.config.NORMALIZED_RANGE, self.config.MOVE_RANGE
             ).item()
-            
+
             return move
-            
+
         except Exception as e:
-            Logger.error(f'Prediction: Failed to predict movement: {e}')
+            Logger.error(f"Prediction: Failed to predict movement: {e}")
             return 0
 
 
