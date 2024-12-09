@@ -1,4 +1,5 @@
 from typing import Tuple, List
+from venv import logger
 from pysimbotlib.core import Robot, PySimbotApp, Simbot
 from base_robot import BaseRobot
 from enum import Enum
@@ -6,8 +7,11 @@ from sensors import DirectionalDistances
 from dataclasses import dataclass, fields
 from itertools import product
 import random
+import json
 from config import REFRESH_INTERVAL
 from kivy.logger import Logger
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Action(Enum):
@@ -40,6 +44,10 @@ DISCOUNT_FACTOR: float = 0.9
 EXPLORATION_RATE: float = 0.7
 MIN_EXPLORATION_RATE: float = 0.1
 DECAY_RATE: float = 0.95
+
+eat_counts = []
+collision_counts = []
+time_steps = []
 
 
 @dataclass
@@ -98,6 +106,27 @@ def after_simulation(simbot: Simbot):
     Logger.info("GA: Start GA Process ...")
     robot = simbot.robots[0]
     robot.export_qtable()
+
+def graph():
+    print("Eat",eat_counts)
+    # Access data from the robot
+
+    # Calculate rates (assuming time steps are in seconds)
+    eat_rates = [count / REFRESH_INTERVAL for count in eat_counts]
+    collision_rates = [count / REFRESH_INTERVAL for count in collision_counts]
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_steps, eat_rates, label='Eat Rate')
+    plt.plot(time_steps, collision_rates, label='Collision Rate')
+
+    plt.xlabel('Time Steps')
+    plt.ylabel('Rate')
+    plt.title('Eat Rate and Collision Rate Over Time')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 
 
 class QLearnRobot(BaseRobot):
@@ -296,26 +325,41 @@ class QLearnRobot(BaseRobot):
             json.dump(serializable_qtable, file, indent=4)
         print(f"Q-table exported to {filename}")
 
-    def reward(self) -> int:
-        if self.stuck:
-            return -10
-        elif self.just_eat:
-            return 100
-
+    def reward(self) -> int:     
+        
         reward = 0
 
-        if self.cur_action == Action.FORWARD:
-            if self.cur_state.food_distance == FoodDistance.FAR:
-                reward += 1
-            elif self.cur_state.food_distance == FoodDistance.MIDDLE:
-                reward += 2
-            elif self.cur_state.food_distance == FoodDistance.NEAR:
-                reward += 3
-        elif self.cur_action == Action.EX_LEFT or self.cur_action == Action.EX_RIGHT:
-            reward -= 2
+        # if self.just_eat:
+        #     reward += 10
+        if self.cur_state.food_distance == FoodDistance.FAR:
+            reward += 2
+        elif self.cur_state.food_distance == FoodDistance.MIDDLE:
+            reward += 5
+        elif self.cur_state.food_distance == FoodDistance.NEAR:
+            reward += 10
 
-        if self.cur_state.food_angle != Angle.FRONT:
-            reward -= 2
+        if self.cur_action == Action.FORWARD:
+            reward += 1
+        # elif self.cur_action == Action.EX_LEFT or self.cur_action == Action.EX_RIGHT:
+        #     reward -= 2
+        if self.cur_state.food_angle == Angle.FRONT:
+            reward += 10
+        elif self.cur_state.food_angle == Angle.RIGHT:
+            reward += 5
+        elif self.cur_state.food_angle == Angle.LEFT:
+            reward += 5
+
+        if self.collision_count:
+            reward -= 10
+
+        if self.stuck:
+            reward -= 5
+        
+        if self.cur_action in [Action.LEFT, Action.RIGHT]:
+            reward += 2
+
+        if self.just_eat:
+            reward += 10          
 
         return reward
 
@@ -343,11 +387,11 @@ class QLearnRobot(BaseRobot):
             print("%.4f" % self.exploration_rate)
 
         if self.cur_action == Action.FORWARD:
-            self.move(10)
+            self.move(5)
         elif self.cur_action == Action.LEFT:
-            self.turn(-20)
+            self.turn(-30)
         elif self.cur_action == Action.RIGHT:
-            self.turn(20)
+            self.turn(30)
         elif self.cur_action == Action.EX_LEFT:
             self.turn(-100)
         elif self.cur_action == Action.EX_RIGHT:
@@ -362,10 +406,15 @@ class QLearnRobot(BaseRobot):
         pass
 
     def update(self):
+        
+        # Track eat and collision counts per iteration
+        eat_counts.append(1 if self.just_eat else 0)
+        collision_counts.append(1 if self.collision_count else 0)
+        time_steps.append(self._sm.iteration)
         self.choose_action()
         self.update_state()
         reward = self.reward()
-        print(reward)
+        print('reward:',reward)
         self.update_qtable(
             reward=reward, learning_rate=LEARNING_RATE, discount_fac=DISCOUNT_FACTOR
         )
@@ -394,3 +443,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# graph()
