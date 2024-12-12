@@ -33,6 +33,7 @@ class Robot(Widget):
     just_eat: bool = False
     stuck: bool = False
     just_hit: bool = False
+    collision: bool = False
 
     @cache
     def get_obstacles_bboxes(self) -> Generator[Geom.BBox, None, None]:
@@ -212,6 +213,7 @@ class Robot(Widget):
         dx = math.cos(rad_angle)
         dy = math.sin(rad_angle)
 
+        self.collision = False
         self.stuck = False
         next_position = (self.pos[0] + step * dx, self.pos[1] + step * dy)
         # check if the robot cannot go by longest distance.
@@ -223,6 +225,7 @@ class Robot(Widget):
                 # If can move
                 if not self._is_valid_position(next_position_to_validate):
                     self.collision_count += 1
+                    self.collision = True
                     if distance == 0:
                         self.stuck = True
                     break
