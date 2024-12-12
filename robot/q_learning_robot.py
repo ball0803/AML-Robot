@@ -108,26 +108,49 @@ def after_simulation(simbot: Simbot):
     robot.export_qtable()
 
 def graph():
-    # Calculate rates (assuming REFRESH_INTERVAL is the time interval between steps)
-    eat_rates = [count / REFRESH_INTERVAL for count in eat_counts]
-    collision_rates = [count / REFRESH_INTERVAL for count in collision_counts]
+    # Constants
+    WINDOW_SIZE = 1000  # จำนวน ticks ต่อช่วง
+    num_windows = len(time_steps) // WINDOW_SIZE  # จำนวนช่วงทั้งหมด
 
-    # Create the plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(time_steps, eat_rates, label='Eat Rate', color='green', marker='o')
-    plt.plot(time_steps, collision_rates, label='Collision Rate', color='red', marker='x')
+    # Calculate average rates per 1000 ticks
+    avg_time_steps = []
+    avg_eat_rates = []
+    avg_collision_rates = []
 
-    # Add labels, title, and legend
-    plt.xlabel('Time Steps')
-    plt.ylabel('Rate (per unit time)')
-    plt.title('Eat Rate and Collision Rate Over Time')
+    for i in range(num_windows):
+        # Slice the data for the current window
+        start_idx = i * WINDOW_SIZE
+        end_idx = start_idx + WINDOW_SIZE
+
+        # Calculate the averages
+        avg_time_steps.append(sum(time_steps[start_idx:end_idx]) / WINDOW_SIZE)
+        avg_eat_rates.append(sum(eat_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL))
+        avg_collision_rates.append(sum(collision_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL))
+
+    # Create the figure
+    plt.figure(figsize=(14, 6))
+
+    # Plot the Eat Rate
+    plt.subplot(1, 2, 1)  # กราฟแรก
+    plt.plot(avg_time_steps, avg_eat_rates, label='Average Eat Rate', color='green', marker='o')
+    plt.xlabel('Time Steps (Average)')
+    plt.ylabel('Eat Rate (per unit time)')
+    plt.title('Average Eat Rate Over Time (1000 Ticks Window)')
     plt.legend()
     plt.grid(True)
 
-    # Show the plot
+    # Plot the Collision Rate
+    plt.subplot(1, 2, 2)  # กราฟที่สอง
+    plt.plot(avg_time_steps, avg_collision_rates, label='Average Collision Rate', color='red', marker='x')
+    plt.xlabel('Time Steps (Average)')
+    plt.ylabel('Collision Rate (per unit time)')
+    plt.title('Average Collision Rate Over Time (1000 Ticks Window)')
+    plt.legend()
+    plt.grid(True)
+
+    # Adjust layout and show the plot
+    plt.tight_layout()
     plt.show()
-
-
 
 class QLearnRobot(BaseRobot):
     def __init__(self) -> None:
@@ -342,15 +365,16 @@ class QLearnRobot(BaseRobot):
             reward += 2
         if self.cur_action == Action.LEFT or Action.RIGHT:
             reward += 1
-        elif self.cur_action == Action.EX_LEFT or self.cur_action == Action.EX_RIGHT:
+            print("A")
+        elif self.cur_action == Action.EX_LEFT or Action.EX_RIGHT:
+            print("B")
             reward += 1
         if self.cur_state.food_angle == Angle.FRONT:
-            reward += 10
+            reward += 15
         # elif self.cur_state.food_angle == Angle.RIGHT:
         #     reward += 5
         # elif self.cur_state.food_angle == Angle.LEFT:
         #     reward += 5
-        print(self.collision_count)
 
         if self.collision:
             reward -= 20
