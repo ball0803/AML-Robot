@@ -20,10 +20,13 @@ class Action(Enum):
     RIGHT = 3
     EX_LEFT = 4
     EX_RIGHT = 5
+    MOVE_LEFT = 6
+    MOVE_RIGHT = 7
 
 
 class Distance(Enum):
     NEAR = "near"
+    MEDIUM = "medium"
     FAR = "far"
 
 
@@ -41,9 +44,9 @@ class Angle(Enum):
 
 LEARNING_RATE: float = 0.5
 DISCOUNT_FACTOR: float = 0.9
-EXPLORATION_RATE: float = 0.7
-MIN_EXPLORATION_RATE: float = 0.1
-DECAY_RATE: float = 0.95
+EXPLORATION_RATE: float = 0.1
+# MIN_EXPLORATION_RATE: float = 0.1
+# DECAY_RATE: float = 0.95
 
 eat_counts = []
 collision_counts = []
@@ -107,9 +110,10 @@ def after_simulation(simbot: Simbot):
     robot = simbot.robots[0]
     robot.export_qtable()
 
+
 def graph():
     # Constants
-    WINDOW_SIZE = 1000  # จำนวน ticks ต่อช่วง
+    WINDOW_SIZE = 2000  # จำนวน ticks ต่อช่วง
     num_windows = len(time_steps) // WINDOW_SIZE  # จำนวนช่วงทั้งหมด
 
     # Calculate average rates per 1000 ticks
@@ -124,27 +128,43 @@ def graph():
 
         # Calculate the averages
         avg_time_steps.append(sum(time_steps[start_idx:end_idx]) / WINDOW_SIZE)
-        avg_eat_rates.append(sum(eat_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL))
-        avg_collision_rates.append(sum(collision_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL))
+        avg_eat_rates.append(
+            sum(eat_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL)
+        )
+        avg_collision_rates.append(
+            sum(collision_counts[start_idx:end_idx]) / (WINDOW_SIZE * REFRESH_INTERVAL)
+        )
 
     # Create the figure
     plt.figure(figsize=(14, 6))
 
     # Plot the Eat Rate
     plt.subplot(1, 2, 1)  # กราฟแรก
-    plt.plot(avg_time_steps, avg_eat_rates, label='Average Eat Rate', color='green', marker='o')
-    plt.xlabel('Time Steps (Average)')
-    plt.ylabel('Eat Rate (per unit time)')
-    plt.title('Average Eat Rate Over Time (1000 Ticks Window)')
+    plt.plot(
+        avg_time_steps,
+        avg_eat_rates,
+        label="Average Eat Rate",
+        color="green",
+        marker="o",
+    )
+    plt.xlabel("Time Steps (Average)")
+    plt.ylabel("Eat Rate (per unit time)")
+    plt.title("Average Eat Rate Over Time (1000 Ticks Window)")
     plt.legend()
     plt.grid(True)
 
     # Plot the Collision Rate
     plt.subplot(1, 2, 2)  # กราฟที่สอง
-    plt.plot(avg_time_steps, avg_collision_rates, label='Average Collision Rate', color='red', marker='x')
-    plt.xlabel('Time Steps (Average)')
-    plt.ylabel('Collision Rate (per unit time)')
-    plt.title('Average Collision Rate Over Time (1000 Ticks Window)')
+    plt.plot(
+        avg_time_steps,
+        avg_collision_rates,
+        label="Average Collision Rate",
+        color="red",
+        marker="x",
+    )
+    plt.xlabel("Time Steps (Average)")
+    plt.ylabel("Collision Rate (per unit time)")
+    plt.title("Average Collision Rate Over Time (1000 Ticks Window)")
     plt.legend()
     plt.grid(True)
 
@@ -152,10 +172,10 @@ def graph():
     plt.tight_layout()
     plt.show()
 
+
 class QLearnRobot(BaseRobot):
     def __init__(self) -> None:
         super().__init__()
-        self.prev_state = None
         self.cur_state = State(
             front_sensor=Distance.FAR,
             front_left_sensor=Distance.FAR,
@@ -165,13 +185,20 @@ class QLearnRobot(BaseRobot):
             food_distance=FoodDistance.FAR,
             food_angle=Angle.FRONT,
         )
-        self.prev_action = None
         self.cur_action = Action.FORWARD
         self.qtable = self.create_qtable()
         self.exploration_rate = EXPLORATION_RATE
 
-    def dist_threshold(self, distance: float, threshold: float) -> Distance:
-        return Distance.NEAR if distance <= threshold else Distance.FAR
+    def dist_threshold(
+        self, distance: float, threshold_1: float, threshold_2: float
+    ) -> Distance:
+        if distance <= threshold_1:
+            return Distance.NEAR
+        elif distance <= threshold_2:
+            return Distance.MEDIUM
+        else:
+            return Distance.FAR
+        # return Distance.NEAR if distance <= threshold else Distance.FAR
 
     def get_enum_for_threshold(
         self, enum_class: Enum, thresholds: List[float], threshold_value: float
@@ -200,13 +227,12 @@ class QLearnRobot(BaseRobot):
 
     def update_state(self) -> State:
         dist: DirectionalDistances = self.sensor_data.distances
-        self.prev_state = self.cur_state
         self.cur_state = State(
-            left_sensor=self.dist_threshold(dist.left, 15),
-            front_left_sensor=self.dist_threshold(dist.front_left, 15),
-            front_sensor=self.dist_threshold(dist.front, 15),
-            front_right_sensor=self.dist_threshold(dist.front_right, 15),
-            right_sensor=self.dist_threshold(dist.right, 15),
+            left_sensor=self.dist_threshold(dist.left, 15, 30),
+            front_left_sensor=self.dist_threshold(dist.front_left, 15, 30),
+            front_sensor=self.dist_threshold(dist.front, 15, 30),
+            front_right_sensor=self.dist_threshold(dist.front_right, 15, 30),
+            right_sensor=self.dist_threshold(dist.right, 15, 30),
             food_distance=self.get_enum_for_threshold(
                 FoodDistance, [100, 200], self.food_dist
             ),
@@ -219,11 +245,11 @@ class QLearnRobot(BaseRobot):
         all_states = []
 
         # Define the possible values for each field in State
-        left_sensors = [Distance.NEAR, Distance.FAR]
-        front_left_sensors = [Distance.NEAR, Distance.FAR]
-        front_sensors = [Distance.NEAR, Distance.FAR]
-        front_right_sensors = [Distance.NEAR, Distance.FAR]
-        right_sensors = [Distance.NEAR, Distance.FAR]
+        left_sensors = [Distance.NEAR, Distance.MEDIUM, Distance.FAR]
+        front_left_sensors = [Distance.NEAR, Distance.MEDIUM, Distance.FAR]
+        front_sensors = [Distance.NEAR, Distance.MEDIUM, Distance.FAR]
+        front_right_sensors = [Distance.NEAR, Distance.MEDIUM, Distance.FAR]
+        right_sensors = [Distance.NEAR, Distance.MEDIUM, Distance.FAR]
         food_distances = [FoodDistance.NEAR, FoodDistance.MIDDLE, FoodDistance.FAR]
         food_angles = [Angle.LEFT, Angle.FRONT, Angle.RIGHT]
 
@@ -278,7 +304,7 @@ class QLearnRobot(BaseRobot):
         current_q_value = self.qtable.get((self.cur_state, self.cur_action), 0)
 
         max_next_q_value = max(
-            self.qtable.get((self.prev_state, next_action), 0) for next_action in Action
+            self.qtable.get((self.cur_state, next_action), 0) for next_action in Action
         )
 
         # Q-learning update rule
@@ -348,80 +374,87 @@ class QLearnRobot(BaseRobot):
             json.dump(serializable_qtable, file, indent=4)
         print(f"Q-table exported to {filename}")
 
-    def reward(self) -> int:     
-        
+    def reward(self) -> int:
         reward = 0
 
-        # if self.just_eat:
-        #     reward += 10
         if self.cur_state.food_distance == FoodDistance.FAR:
-            reward += 2
+            reward += 1
         elif self.cur_state.food_distance == FoodDistance.MIDDLE:
-            reward += 5
+            reward += 3
         elif self.cur_state.food_distance == FoodDistance.NEAR:
-            reward += 10
+            reward += 5
 
         if self.cur_action == Action.FORWARD:
             reward += 2
-        if self.cur_action == Action.LEFT or Action.RIGHT:
-            reward += 1
-            print("A")
-        elif self.cur_action == Action.EX_LEFT or Action.EX_RIGHT:
-            print("B")
-            reward += 1
-        if self.cur_state.food_angle == Angle.FRONT:
-            reward += 15
-        # elif self.cur_state.food_angle == Angle.RIGHT:
-        #     reward += 5
-        # elif self.cur_state.food_angle == Angle.LEFT:
-        #     reward += 5
+
+        # if self.cur_action == Action.LEFT or self.cur_action == Action.RIGHT:
+        #     print("A")
+        #     reward -= 2
+
+        # if self.cur_action == Action.EX_LEFT or self.cur_action == Action.EX_RIGHT:
+        #     print("B")
+        #     reward -= 10
+
+        if (
+            self.cur_action == Action.FORWARD
+            and self.cur_state.food_angle == Angle.FRONT
+        ):
+            reward += 5
+
+        if (
+            self.cur_action != Action.FORWARD
+            or self.cur_action != Action.MOVE_LEFT
+            or self.cur_action != Action.MOVE_RIGHT
+        ) and self.cur_state.food_angle == Angle.FRONT:
+            reward -= 5
 
         if self.collision:
             reward -= 20
 
-        # if self.stuck:
-        #     reward = -15
-        
-        
-
         if self.just_eat:
-            reward = 50          
+            reward = 100
 
         return reward
 
     def choose_action(self):
-        self.prev_action = self.cur_action
-
-        if random.uniform(0, 1) < self.exploration_rate or self.prev_state == None:
+        if random.uniform(0, 1) < self.exploration_rate:
             self.cur_action = random.choice(list(Action))
         else:
             q_values = [
                 self.qtable.get((self.cur_state, action), 0) for action in Action
             ]
+            # print(q_values)
             max_q_value = max(q_values)
             max_actions = [
                 action
                 for action, value in zip(Action, q_values)
                 if value == max_q_value
             ]
+            # print(max_actions)
             self.cur_action = random.choice(max_actions)
 
-        if self._sm.iteration % 100 == 0:
-            self.exploration_rate = max(
-                MIN_EXPLORATION_RATE, self.exploration_rate * DECAY_RATE
-            )
-            print("%.4f" % self.exploration_rate)
+        # if self._sm.iteration % 100 == 0:
+        #     self.exploration_rate = max(
+        #         MIN_EXPLORATION_RATE, self.exploration_rate * DECAY_RATE
+        #     )
+        #     print("%.4f" % self.exploration_rate)
 
         if self.cur_action == Action.FORWARD:
-            self.move(5)
+            self.move(10)
         elif self.cur_action == Action.LEFT:
             self.turn(-20)
         elif self.cur_action == Action.RIGHT:
             self.turn(20)
+        elif self.cur_action == Action.MOVE_LEFT:
+            self.move(5)
+            self.turn(-20)
+        elif self.cur_action == Action.MOVE_RIGHT:
+            self.move(5)
+            self.turn(20)
         elif self.cur_action == Action.EX_LEFT:
-            self.turn(-100)
+            self.turn(-90)
         elif self.cur_action == Action.EX_RIGHT:
-            self.turn(100)
+            self.turn(90)
 
         return self.cur_action
 
@@ -432,7 +465,7 @@ class QLearnRobot(BaseRobot):
         pass
 
     def update(self):
-        
+
         # Track eat and collision counts per iteration
         eat_counts.append(1 if self.just_eat else 0)
         collision_counts.append(1 if self.collision else 0)
@@ -440,7 +473,7 @@ class QLearnRobot(BaseRobot):
         self.choose_action()
         self.update_state()
         reward = self.reward()
-        print('reward:',reward)
+        # print("reward:", reward)
         self.update_qtable(
             reward=reward, learning_rate=LEARNING_RATE, discount_fac=DISCOUNT_FACTOR
         )
